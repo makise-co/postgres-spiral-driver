@@ -1,0 +1,32 @@
+{
+  "name": "makise-co/postgres-spiral-driver",
+  "type": "library",
+  "description": "Makise-Co Postgres client adapter for Spiral DBAL",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Dmitry K.",
+      "email": "coder1994@gmail.com"
+    }
+  ],
+  "require": {
+    "php": "^7.4",
+    "spiral/database": "~2.0",
+    "makise-co/postgres": "~1.0.5"
+  },
+  "require-dev": {
+    "mockery/mockery": "^1.1",
+    "phpunit/phpunit": "~8.0",
+    "swoole/ide-helper": "^4.5"
+  },
+  "autoload": {
+    "psr-4": {
+      "MakiseCo\\Database\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "MakiseCo\\Database\\Tests\\": "tests/Database/"
+    }
+  }
+}
