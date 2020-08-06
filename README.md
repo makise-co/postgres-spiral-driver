@@ -1,5 +1,5 @@
 # postgres-spiral-driver
-MakiseCo PostgreSQL client adapter for Spiral DBAL
+[MakiseCo PostgreSQL client](https://github.com/makise-co/postgres) adapter for [Spiral DBAL](https://github.com/spiral/database)
 
 WARNING: This driver could be used only in the Coroutine context
 
