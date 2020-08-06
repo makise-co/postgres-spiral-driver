@@ -34,7 +34,7 @@ Database\Tests\BaseTest::$config = [
         'check'      => static function () {
             return \extension_loaded('swoole') && \extension_loaded('pq');
         },
-        'conn'       => 'host=host.docker.internal;port=15432;dbname=spiral',
+        'conn'       => 'host=127.0.0.1;port=15432;dbname=spiral',
 
         'user' => 'postgres',
         'pass' => 'postgres',
