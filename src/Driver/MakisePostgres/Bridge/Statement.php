@@ -9,13 +9,13 @@
 
 declare(strict_types=1);
 
-namespace MakiseCo\Database\Driver\MakisePostgres;
+namespace MakiseCo\Database\Driver\MakisePostgres\Bridge;
 
 use Generator;
 use IteratorAggregate;
-use MakiseCo\Postgres\CommandResult;
-use MakiseCo\Postgres\ResultSet;
-use MakiseCo\Postgres\Statement as PostgresStatement;
+use MakiseCo\SqlCommon\Contracts\CommandResult;
+use MakiseCo\SqlCommon\Contracts\ResultSet;
+use MakiseCo\SqlCommon\Contracts\Statement as PostgresStatement;
 use pq\Result;
 use Spiral\Database\StatementInterface;
 
@@ -92,7 +92,7 @@ final class Statement implements StatementInterface, IteratorAggregate
         }
 
         $result = null;
-        $this->resultSet->fetchCol($columnNumber, $result);
+        $this->resultSet->fetchColumn($columnNumber, $result);
 
         return $result;
     }

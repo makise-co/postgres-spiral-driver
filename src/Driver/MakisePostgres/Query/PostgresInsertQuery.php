@@ -12,6 +12,7 @@ declare(strict_types=1);
 namespace MakiseCo\Database\Driver\MakisePostgres\Query;
 
 use MakiseCo\Database\Driver\MakisePostgres\MakisePostgresDriver;
+use MakiseCo\Database\Driver\MakisePostgres\PooledMakisePostgresDriver;
 use Spiral\Database\Driver\DriverInterface;
 use Spiral\Database\Driver\Postgres\Query\PostgresInsertQuery as BasePostgresInsertQuery;
 use Spiral\Database\Exception\BuilderException;
@@ -30,7 +31,7 @@ class PostgresInsertQuery extends BasePostgresInsertQuery
      */
     public function withDriver(DriverInterface $driver, string $prefix = null): QueryInterface
     {
-        if (!$driver instanceof MakisePostgresDriver) {
+        if (!$driver instanceof MakisePostgresDriver && !$driver instanceof PooledMakisePostgresDriver) {
             throw new BuilderException(
                 'Postgres InsertQuery can be used only with MakisePostgresDriver driver'
             );

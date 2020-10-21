@@ -14,14 +14,17 @@ namespace MakiseCo\Database\Driver\MakisePostgres;
 use DateTimeImmutable;
 use DateTimeInterface;
 use DateTimeZone;
+use MakiseCo\Database\Driver\MakisePostgres\Bridge\OptionsProcessor;
+use MakiseCo\Database\Driver\MakisePostgres\Bridge\Statement;
 use MakiseCo\Postgres\Connection;
 use MakiseCo\Postgres\ConnectionConfig;
 use MakiseCo\Postgres\ConnectionConfigBuilder;
-use MakiseCo\Postgres\Exception\ConnectionException;
-use MakiseCo\Postgres\Exception\FailureException;
+use MakiseCo\Postgres\Contracts\Transaction;
+use MakiseCo\Postgres\Driver\Pq\PqConnection;
 use MakiseCo\Postgres\Exception\QueryExecutionError;
-use MakiseCo\Postgres\Statement as PostgresStatement;
-use MakiseCo\Postgres\Transaction;
+use MakiseCo\SqlCommon\Contracts\Statement as PostgresStatement;
+use MakiseCo\SqlCommon\Exception\ConnectionException;
+use MakiseCo\SqlCommon\Exception\FailureException;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
 use Spiral\Database\Driver\CachingCompilerInterface;
@@ -318,11 +321,8 @@ class MakisePostgresDriver implements DriverInterface, LoggerAwareInterface
      */
     public function connect(): void
     {
-        if ($this->connection === null) {
+        if ($this->connection === null || !$this->connection->isAlive()) {
             $this->connection = $this->createPDO();
-            $this->connection->connect();
-        } elseif (!$this->connection->isConnected()) {
-            $this->connection->connect();
         }
     }
 
@@ -333,7 +333,7 @@ class MakisePostgresDriver implements DriverInterface, LoggerAwareInterface
      */
     public function isConnected(): bool
     {
-        return $this->connection !== null && $this->connection->isConnected();
+        return $this->connection !== null && $this->connection->isAlive();
     }
 
     /**
@@ -351,7 +351,7 @@ class MakisePostgresDriver implements DriverInterface, LoggerAwareInterface
         }
 
         try {
-            $this->queryCache = [];
+            $this->connection->close();
         } catch (Throwable $e) {
             // disconnect error
             if ($this->logger !== null) {
@@ -360,7 +360,7 @@ class MakisePostgresDriver implements DriverInterface, LoggerAwareInterface
         }
 
         try {
-            $this->connection->disconnect();
+            $this->queryCache = [];
         } catch (Throwable $e) {
             // disconnect error
             if ($this->logger !== null) {
@@ -566,8 +566,7 @@ class MakisePostgresDriver implements DriverInterface, LoggerAwareInterface
         try {
             $parsedParameters = $this->getParameters($query, $parameters);
 
-            // TODO: Support parameter types
-            $statement = $this->prepare($query, []);
+            $statement = $this->prepare($query);
             $result = $statement->execute($parsedParameters);
 
             return new Statement($statement, $result);
@@ -604,17 +603,17 @@ class MakisePostgresDriver implements DriverInterface, LoggerAwareInterface
 
     /**
      * @param string $query
-     * @param array $types
+     *
      * @return PostgresStatement
      * @throws FailureException
      */
-    protected function prepare(string $query, array $types = []): PostgresStatement
+    protected function prepare(string $query): PostgresStatement
     {
         if ($this->options['queryCache'] && isset($this->queryCache[$query])) {
             return $this->queryCache[$query];
         }
 
-        $statement = $this->getPDO()->prepare($query, null, $types);
+        $statement = $this->getPDO()->prepare($query);
         if ($this->options['queryCache']) {
             $this->queryCache[$query] = $statement;
         }
@@ -777,7 +776,7 @@ class MakisePostgresDriver implements DriverInterface, LoggerAwareInterface
      */
     protected function createPDO(): Connection
     {
-        return new Connection($this->config);
+        return PqConnection::connect($this->config);
     }
 
     /**
@@ -803,6 +802,6 @@ class MakisePostgresDriver implements DriverInterface, LoggerAwareInterface
      */
     protected function getDSN(): string
     {
-        return $this->config->getDsn();
+        return $this->config->getConnectionString();
     }
 }

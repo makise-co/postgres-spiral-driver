@@ -10,7 +10,7 @@ declare(strict_types=1);
 
 namespace MakiseCo\Database\Tests;
 
-use MakiseCo\Postgres\Statement;
+use MakiseCo\SqlCommon\Contracts\Statement;
 use Spiral\Database\Database;
 use Spiral\Database\Schema\AbstractTable;
 use Spiral\Database\StatementInterface;
