@@ -27,6 +27,9 @@ use Spiral\Database\Schema\AbstractIndex;
 use Spiral\Database\Schema\AbstractTable;
 use Spiral\Database\Schema\Comparator;
 use MakiseCo\Database\Tests\Utils\TestLogger;
+use Swoole\Coroutine;
+use Swoole\Event;
+use Swoole\Timer;
 use Throwable;
 
 use function Swoole\Coroutine\run;
@@ -67,22 +70,40 @@ abstract class BaseTest extends TestCase
 
     public function run(TestResult $result = null): TestResult
     {
-        $ex = null;
+        $coroResult = new CoroutineTestResult();
 
-        // run test case inside coroutine
-        run(function () use (&$result, &$ex) {
-            try {
-                $result = parent::run($result);
-            } catch (Throwable $e) {
-                $ex = $e;
-            }
-        });
+        run(
+            \Closure::fromCallable([$this, 'execCoro']),
+            $result,
+            $coroResult
+        );
 
-        if ($ex instanceof Throwable) {
-            throw $ex;
+        if (null !== $coroResult->ex) {
+            throw $coroResult->ex;
         }
 
-        return $result;
+        return $coroResult->result;
+    }
+
+    private function execCoro(?TestResult $result, CoroutineTestResult $coroTestResult): void
+    {
+        Coroutine::defer(
+            static function () {
+                // do not block command coroutine exit if programmer have forgotten to release event loop
+                if (Coroutine::stats()['event_num'] > 0) {
+                    // force exit event loop
+                    Event::exit();
+                }
+
+                Timer::clearAll();
+            }
+        );
+
+        try {
+            $coroTestResult->result = parent::run($result);
+        } catch (Throwable $e) {
+            $coroTestResult->ex = $e;
+        }
     }
 
     /**
@@ -172,7 +193,7 @@ abstract class BaseTest extends TestCase
      */
     protected function dropDatabase(Database $database = null): void
     {
-        if ($database == null) {
+        if ($database === null) {
             return;
         }
 

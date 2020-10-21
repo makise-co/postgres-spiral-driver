@@ -20,7 +20,7 @@ class PostgresHandler extends BasePostgresHandler
      */
     protected function run(string $statement, array $parameters = []): int
     {
-        if ($this->driver instanceof MakisePostgresDriver) {
+        if ($this->driver instanceof MakisePostgresDriver || $this->driver instanceof PooledMakisePostgresDriver) {
             // invaliding primary key cache
             $this->driver->resetPrimaryKeys();
         }

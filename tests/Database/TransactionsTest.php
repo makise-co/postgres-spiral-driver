@@ -33,7 +33,7 @@ abstract class TransactionsTest extends BaseTest
 
     public function tearDown(): void
     {
-        $this->dropDatabase($this->db());
+        $this->dropDatabase($this->database);
 
         parent::tearDown();
     }

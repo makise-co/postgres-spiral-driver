@@ -9,7 +9,7 @@
 
 declare(strict_types=1);
 
-namespace MakiseCo\Database\Driver\MakisePostgres;
+namespace MakiseCo\Database\Driver\MakisePostgres\Bridge;
 
 use function array_key_exists;
 use function count;
@@ -50,7 +50,7 @@ final class OptionsProcessor
         return $options;
     }
 
-    private static function parseDsn(string $dsn, array &$options): void
+    public static function parseDsn(string $dsn, array &$options): void
     {
         // cut PDO DSN prefix
         if (0 === strpos($dsn, 'pgsql:')) {
@@ -67,12 +67,6 @@ final class OptionsProcessor
             [$key, $value] = explode('=', $connPart, 2);
 
             if (!array_key_exists($key, $options)) {
-                if ($key === 'port') {
-                    $value = (int)$value;
-                } elseif ($key === 'unbuffered') {
-                    $value = (bool)$value;
-                }
-
                 $options[$key] = $value;
             }
         }
@@ -90,10 +84,19 @@ final class OptionsProcessor
         'timezone',
         'encoding',
         'charset',
+        'client_encoding',
         'schema',
         'search_path',
         'connect_timeout',
         'unbuffered',
-        'options',
+        'sslmode',
+        'sslcert',
+        'sslkey',
+        'sslrootcert',
+        'sslcrl',
+        'requirepeer',
+        'krbsrvname',
+        'gsslib',
+        'target_session_attrs',
     ];
 }

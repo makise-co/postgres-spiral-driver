@@ -12,7 +12,7 @@
   "require": {
     "php": "^7.4",
     "spiral/database": "~2.0",
-    "makise-co/postgres": "~1.0.5"
+    "makise-co/postgres": "^2.0.3"
   },
   "require-dev": {
     "mockery/mockery": "^1.1",

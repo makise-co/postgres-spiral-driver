@@ -67,10 +67,10 @@ abstract class DatabaseTest extends BaseTest
         $this->assertSame(1, $db->execute('test', ['param']));
     }
 
-
     public function testPrefix(): void
     {
         $db = $this->db();
+
         $this->assertFalse($db->hasTable('test'));
         $this->assertFalse($db->hasTable('prefix_test'));
 
