@@ -18,7 +18,6 @@ use MakiseCo\Database\Driver\MakisePostgres\Bridge\Statement;
 use MakiseCo\Postgres\ConnectionConfig;
 use MakiseCo\Postgres\ConnectionConfigBuilder;
 use MakiseCo\Postgres\Contracts\Quoter;
-use MakiseCo\Postgres\Driver\Pq\PqConnector;
 use MakiseCo\SqlCommon\Contracts\Statement as PostgresStatement;
 use MakiseCo\SqlCommon\Exception\FailureException;
 use Psr\Log\LoggerAwareTrait;
