@@ -108,8 +108,11 @@ class PooledMakisePostgresDriver implements DriverInterface
         // maximum connection count in the pool
         'poolMaxActive' => 2,
 
-        // maximum connection idle time
-        'poolMaxIdleTime' => 30.0,
+        // maximum connection idle time (seconds, int)
+        'poolMaxIdleTime' => 30,
+
+        // how often pool will check idle connections
+        'poolValidationInterval' => 15.0,
     ];
 
     public function __construct(array $options)
@@ -147,6 +150,7 @@ class PooledMakisePostgresDriver implements DriverInterface
         $this->pool->setMaxActive($this->options['poolMaxActive']);
         $this->pool->setMinActive($this->options['poolMinActive']);
         $this->pool->setMaxIdleTime($this->options['poolMaxIdleTime']);
+        $this->pool->setValidationInterval($this->options['poolValidationInterval']);
 
         if (array_key_exists('poolMaxWaitTime', $this->options)) {
             $this->pool->setMaxWaitTime($this->options['poolMaxWaitTime']);
