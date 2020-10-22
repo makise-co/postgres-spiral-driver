@@ -22,14 +22,24 @@ $dbConfig = new Database\Config\DatabaseConfig([
         'pgsql' => [
             'driver'  => \MakiseCo\Database\Driver\MakisePostgres\MakisePostgresDriver::class,
             'options' => [
-                'connection' => 'host=127.0.0.1;port=5432;dbname=makise',
-                'username' => 'postgres',
-                'password' => 'postgres',
-
-                // or specify config parts directly
                 'host' => '127.0.0.1',
                 'port' => 5432,
+                'username' => 'makise',
+                'password' => 'el-psy-congroo',
                 'database' => 'makise',
+                // or 'connection' => 'host=127.0.0.1;dbname=makise',
+                'schema' => ['public'],
+                'timezone' => 'UTC',
+                'charset' => 'utf8',
+                'application_name' => 'MakiseCo Framework',
+                
+                'connector' => \MakiseCo\Postgres\Driver\Pq\PqConnector::class,
+
+                // connection pool configuration
+                'poolMinActive' => 0,
+                'poolMaxActive' => 2,
+                'poolMaxIdleTime' => 30,
+                'poolValidationInterval' => 15.0,
             ]
         ]
     ]
