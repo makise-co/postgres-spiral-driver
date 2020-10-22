@@ -102,6 +102,9 @@ class PooledMakisePostgresDriver implements DriverInterface
         // disable schema modifications
         'readonlySchema' => false,
 
+        // default connector is Pq connector
+        'connector' => \MakiseCo\Postgres\Driver\Pq\PqConnector::class,
+
         // minimal connection count in the pool
         'poolMinActive' => 0,
 
@@ -145,7 +148,10 @@ class PooledMakisePostgresDriver implements DriverInterface
             $this->schemaHandler = new ReadonlyHandler($this->schemaHandler);
         }
 
-        $this->pool = new Bridge\PostgresPool($this->connectionConfig, new PqConnector());
+        $this->pool = new Bridge\PostgresPool(
+            $this->connectionConfig,
+            new $options['connector']()
+        );
 
         $this->pool->setMaxActive($this->options['poolMaxActive']);
         $this->pool->setMinActive($this->options['poolMinActive']);
