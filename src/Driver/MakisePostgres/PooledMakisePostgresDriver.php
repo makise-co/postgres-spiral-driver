@@ -13,7 +13,6 @@ namespace MakiseCo\Database\Driver\MakisePostgres;
 use DateTimeImmutable;
 use DateTimeInterface;
 use DateTimeZone;
-use MakiseCo\Database\Driver\MakisePostgres\Bridge\ExceptionMapper;
 use MakiseCo\Database\Driver\MakisePostgres\Bridge\OptionsProcessor;
 use MakiseCo\Database\Driver\MakisePostgres\Bridge\Statement;
 use MakiseCo\Postgres\ConnectionConfig;
@@ -31,6 +30,7 @@ use Spiral\Database\Driver\HandlerInterface;
 use Spiral\Database\Driver\Postgres\PostgresCompiler;
 use Spiral\Database\Driver\ReadonlyHandler;
 use Spiral\Database\Exception\DriverException;
+use Spiral\Database\Exception\HandlerException;
 use Spiral\Database\Exception\StatementException;
 use Spiral\Database\Injection\ParameterInterface;
 use Spiral\Database\Query\BuilderInterface;
@@ -39,11 +39,16 @@ use Spiral\Database\Query\Interpolator;
 use Spiral\Database\Query\QueryBuilder;
 use Spiral\Database\Query\SelectQuery;
 use Spiral\Database\Query\UpdateQuery;
+use Spiral\Database\Schema\AbstractTable;
 use Spiral\Database\StatementInterface;
 use Swoole\Coroutine;
 use Throwable;
 
+use function array_key_exists;
 use function array_merge;
+use function is_string;
+use function strpos;
+use function substr;
 
 class PooledMakisePostgresDriver implements DriverInterface
 {
@@ -95,7 +100,22 @@ class PooledMakisePostgresDriver implements DriverInterface
         'queryCache' => true,
 
         // disable schema modifications
-        'readonlySchema' => false
+        'readonlySchema' => false,
+
+        // default connector is Pq connector
+        'connector' => \MakiseCo\Postgres\Driver\Pq\PqConnector::class,
+
+        // minimal connection count in the pool
+        'poolMinActive' => 0,
+
+        // maximum connection count in the pool
+        'poolMaxActive' => 2,
+
+        // maximum connection idle time (seconds, int)
+        'poolMaxIdleTime' => 30,
+
+        // how often pool will check idle connections
+        'poolValidationInterval' => 15.0,
     ];
 
     public function __construct(array $options)
@@ -109,7 +129,7 @@ class PooledMakisePostgresDriver implements DriverInterface
         ))->withDriver($this);
         $this->queryCompiler = new PostgresCompiler('""');
 
-        if (\array_key_exists('connection', $options)) {
+        if (array_key_exists('connection', $options)) {
             OptionsProcessor::parseDsn($options['connection'], $options);
         }
 
@@ -128,7 +148,23 @@ class PooledMakisePostgresDriver implements DriverInterface
             $this->schemaHandler = new ReadonlyHandler($this->schemaHandler);
         }
 
-        $this->pool = new Bridge\PostgresPool($this->connectionConfig, new PqConnector());
+        $this->pool = new Bridge\PostgresPool(
+            $this->connectionConfig,
+            new $options['connector']()
+        );
+
+        $this->pool->setMaxActive($this->options['poolMaxActive']);
+        $this->pool->setMinActive($this->options['poolMinActive']);
+        $this->pool->setMaxIdleTime($this->options['poolMaxIdleTime']);
+        $this->pool->setValidationInterval($this->options['poolValidationInterval']);
+
+        if (array_key_exists('poolMaxWaitTime', $this->options)) {
+            $this->pool->setMaxWaitTime($this->options['poolMaxWaitTime']);
+        }
+
+        if (array_key_exists('poolMaxLifeTime', $this->options)) {
+            $this->pool->setMaxLifeTime($this->options['poolMaxLifeTime']);
+        }
     }
 
     public function __destruct()
@@ -251,7 +287,7 @@ class PooledMakisePostgresDriver implements DriverInterface
         try {
             $transaction = $this->pool->beginTransaction($isolation);
         } catch (Throwable $e) {
-            $e = ExceptionMapper::map($e, 'BEGIN TRANSACTION');
+            $e = Bridge\ExceptionMapper::map($e, 'BEGIN TRANSACTION');
 
             if (!$e instanceof StatementException\ConnectionException || !$this->options['reconnect']) {
                 throw $e;
@@ -260,7 +296,7 @@ class PooledMakisePostgresDriver implements DriverInterface
             try {
                 $transaction = $this->pool->beginTransaction($isolation);
             } catch (Throwable $e) {
-                throw ExceptionMapper::map($e, 'BEGIN TRANSACTION');
+                throw Bridge\ExceptionMapper::map($e, 'BEGIN TRANSACTION');
             }
         }
 
@@ -333,11 +369,11 @@ class PooledMakisePostgresDriver implements DriverInterface
      *
      * @param string $table
      * @param string|null $prefix
-     * @return \Spiral\Database\Schema\AbstractTable
+     * @return AbstractTable
      *
-     * @throws \Spiral\Database\Exception\HandlerException
+     * @throws HandlerException
      */
-    public function getSchema(string $table, ?string $prefix = null): \Spiral\Database\Schema\AbstractTable
+    public function getSchema(string $table, ?string $prefix = null): AbstractTable
     {
         return $this->getSchemaHandler()->getSchema(
             $table,
@@ -461,7 +497,7 @@ class PooledMakisePostgresDriver implements DriverInterface
 
             return new Statement($statement, $result);
         } catch (Throwable $e) {
-            $e = ExceptionMapper::map($e, Interpolator::interpolate($query, $parameters));
+            $e = Bridge\ExceptionMapper::map($e, Interpolator::interpolate($query, $parameters));
 
             if (
                 $retry
@@ -517,8 +553,8 @@ class PooledMakisePostgresDriver implements DriverInterface
         $normParams = [];
 
         foreach ($parameters as $key => $param) {
-            if (\is_string($key) && 0 === \strpos($key, ':')) {
-                $key = \substr($key, 1);
+            if (is_string($key) && 0 === strpos($key, ':')) {
+                $key = substr($key, 1);
             }
 
             if ($param instanceof ParameterInterface) {
