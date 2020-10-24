@@ -20,7 +20,7 @@ $dbConfig = new Database\Config\DatabaseConfig([
     ],
     'connections' => [
         'pgsql' => [
-            'driver'  => \MakiseCo\Database\Driver\MakisePostgres\MakisePostgresDriver::class,
+            'driver'  => \MakiseCo\Database\Driver\MakisePostgres\PooledMakisePostgresDriver::class,
             'options' => [
                 'host' => '127.0.0.1',
                 'port' => 5432,
