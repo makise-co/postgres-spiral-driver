@@ -15,6 +15,7 @@ use DateTimeInterface;
 use DateTimeZone;
 use MakiseCo\Database\Driver\MakisePostgres\Bridge\OptionsProcessor;
 use MakiseCo\Database\Driver\MakisePostgres\Bridge\Statement;
+use MakiseCo\EvPrimitives\Lock;
 use MakiseCo\Postgres\ConnectionConfig;
 use MakiseCo\Postgres\ConnectionConfigBuilder;
 use MakiseCo\Postgres\Contracts\Quoter;
@@ -69,6 +70,8 @@ class PooledMakisePostgresDriver implements DriverInterface
     private array $transactions = [];
 
     private array $options;
+
+    private Lock $pkCacheLock;
 
     /**
      * Cached list of primary keys associated with their table names. Used by InsertBuilder to
@@ -164,11 +167,18 @@ class PooledMakisePostgresDriver implements DriverInterface
         if (array_key_exists('poolMaxLifeTime', $this->options)) {
             $this->pool->setMaxLifeTime($this->options['poolMaxLifeTime']);
         }
+
+        $this->pkCacheLock = new Lock();
     }
 
     public function __destruct()
     {
         $this->disconnect();
+    }
+
+    public function getPool(): Bridge\PostgresPool
+    {
+        return $this->pool;
     }
 
     public function getType(): string
@@ -309,11 +319,10 @@ class PooledMakisePostgresDriver implements DriverInterface
 
     public function commitTransaction(): bool
     {
-        if (!$this->isConnected()) {
-            $this->connect();
-        }
-
         $transaction = $this->getTransactionConn();
+        if ($transaction === null) {
+            return false;
+        }
 
         try {
             $transaction->commit();
@@ -328,11 +337,10 @@ class PooledMakisePostgresDriver implements DriverInterface
 
     public function rollbackTransaction(): bool
     {
-        if (!$this->isConnected()) {
-            $this->connect();
-        }
-
         $transaction = $this->getTransactionConn();
+        if ($transaction === null) {
+            return false;
+        }
 
         try {
             $transaction->rollbackTransaction();
@@ -442,7 +450,17 @@ class PooledMakisePostgresDriver implements DriverInterface
             return $this->primaryKeys[$name];
         }
 
+        $this->pkCacheLock->lock();
+
+        if (isset($this->primaryKeys[$name])) {
+            $this->pkCacheLock->unlock();
+
+            return $this->primaryKeys[$name];
+        }
+
         if (!$this->getSchemaHandler()->hasTable($name)) {
+            $this->pkCacheLock->unlock();
+
             throw new DriverException(
                 "Unable to fetch table primary key, no such table '{$name}' exists"
             );
@@ -459,6 +477,8 @@ class PooledMakisePostgresDriver implements DriverInterface
             $this->primaryKeys[$name] = null;
         }
 
+        $this->pkCacheLock->unlock();
+
         return $this->primaryKeys[$name];
     }
 
@@ -467,7 +487,11 @@ class PooledMakisePostgresDriver implements DriverInterface
      */
     public function resetPrimaryKeys(): void
     {
+        $this->pkCacheLock->lock();
+
         $this->primaryKeys = [];
+
+        $this->pkCacheLock->unlock();
     }
 
     /**
@@ -506,6 +530,14 @@ class PooledMakisePostgresDriver implements DriverInterface
                 unset($statement);
 
                 return $this->statement($query, $parameters, false);
+            }
+
+            // an exception occurred during transaction
+            if ($this->getTransactionConn() !== null) {
+                try {
+                    unset($statement);
+                } catch (\Throwable $stmtCloseEx) {
+                }
             }
 
             throw $e;
