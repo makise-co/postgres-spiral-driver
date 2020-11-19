@@ -533,6 +533,8 @@ class PooledMakisePostgresDriver implements DriverInterface
             }
 
             if (($conn = $this->getTransactionConn()) !== null && isset($statement)) {
+                // statements cannot be deallocated inside broken transaction block
+                // so statements de-allocation should be delayed until transaction rollback
                 $conn->addStatementToDeallocate($statement);
             }
 
