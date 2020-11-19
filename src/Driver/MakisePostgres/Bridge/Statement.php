@@ -45,7 +45,8 @@ final class Statement implements StatementInterface, IteratorAggregate
      */
     public function __construct(PostgresStatement $pdoStatement, $result)
     {
-        $this->pdoStatement = $pdoStatement;
+        // TODO: This preventing from infinite locking, statement should be release immediately
+//        $this->pdoStatement = $pdoStatement;
         $this->queryString = $pdoStatement->getQuery();
 
         if ($result instanceof ResultSet) {
@@ -76,6 +77,7 @@ final class Statement implements StatementInterface, IteratorAggregate
      */
     public function getPDOStatement(): PostgresStatement
     {
+        throw new \RuntimeException('This is not a PDO');
         return $this->pdoStatement;
     }
 
