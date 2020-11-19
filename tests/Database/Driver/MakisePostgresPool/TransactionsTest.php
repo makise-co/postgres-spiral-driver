@@ -12,135 +12,67 @@ declare(strict_types=1);
 namespace MakiseCo\Database\Tests\Driver\MakisePostgresPool;
 
 use MakiseCo\Database\Driver\MakisePostgres\Bridge\PostgresPool;
-use Spiral\Database\Database;
-use Spiral\Database\Exception\StatementException\ConstrainException;
+use Swoole\Coroutine;
 
 class TransactionsTest extends \MakiseCo\Database\Tests\TransactionsTest
 {
     public const DRIVER = 'makisepostgrespool';
 
-    public function setUp(): void
+    public function testConcurrentTransactions(): void
     {
-        $this->database = $this->db();
-
+        $db = $this->database;
         /** @var PostgresPool $pool */
-        $pool=  $this->database->getDriver()->getPool();
-        $pool->setMaxActive(1);
+        $pool = $db->getDriver()->getPool();
 
-        $schema = $this->database->table('table')->getSchema();
-        $schema->primary('id');
-        $schema->text('name');
-        $schema->integer('value');
+        self::assertSame(2, $pool->getMaxActive());
 
-        $schema->save();
-    }
+        $ch = new Coroutine\Channel(2);
 
-    public function testConstraintExceptionOnTransaction(): void
-    {
-        $this->expectException(ConstrainException::class);
-
-        $this->database->transaction(
-            function (Database $db) {
-                $res = $db->query(
-                    <<<SQL
-CREATE TABLE uniq_table (
-id int8 PRIMARY KEY
-);
-SQL
-                );
-                $db->insert('uniq_table')->values(['id' => 1])->run();
-                $db->insert('uniq_table')->values(['id' => 1])->run();
-            }
-        );
-    }
-
-    public function testConstraintExceptionOnNestedTransaction(): void
-    {
-        $this->expectException(ConstrainException::class);
-
-        $this->database->transaction(
-            function (Database $db) {
-                $res = $db->query(
-                    <<<SQL
-CREATE TABLE uniq_table (
-id int8 PRIMARY KEY
-);
-SQL
-                );
-                $db->insert('uniq_table')->values(['id' => 1])->run();
-
-                $db->transaction(function (Database $db) {
-                    $db->insert('uniq_table')->values(['id' => 1])->run();
-                });
-            }
-        );
-    }
-
-    public function testConstraintExceptionOnMultipleTimesTransaction(): void
-    {
-        $this->expectException(ConstrainException::class);
-
-        try {
+        Coroutine::create(function () use ($db, $ch) {
             $this->database->transaction(
-                function (Database $db) {
-                    $res = $db->query(
-                        <<<SQL
-CREATE TABLE uniq_table (
-id int8 PRIMARY KEY
-);
-SQL
-                    );
-                    $db->insert('uniq_table')->values(['id' => 1])->run();
+                function () use ($db, $ch): void {
+                    try {
+                        $id = $db->table->insertOne(['name' => 'Anton', 'value' => 123]);
+                        $this->assertSame($id, $this->database->table->count());
+                        $db->query('SELECT pg_sleep(0.5)');
 
-                    $db->transaction(
-                        function (Database $db) {
-                            $db->insert('uniq_table')->values(['id' => 1])->run();
-                        }
-                    );
-                }
-            );
-        } catch (ConstrainException $e) {
-        }
-
-        try {
-            $this->database->transaction(
-                function (Database $db) {
-                    $res = $db->query(
-                        <<<SQL
-CREATE TABLE uniq_table (
-id int8 PRIMARY KEY
-);
-SQL
-                    );
-                    $db->insert('uniq_table')->values(['id' => 1])->run();
-
-                    $db->transaction(
-                        function (Database $db) {
-                            $db->insert('uniq_table')->values(['id' => 1])->run();
-                        }
-                    );
-                }
-            );
-        } catch (ConstrainException $e) {
-        }
-
-        $this->database->transaction(
-            function (Database $db) {
-                $res = $db->query(
-                    <<<SQL
-CREATE TABLE uniq_table (
-id int8 PRIMARY KEY
-);
-SQL
-                );
-                $db->insert('uniq_table')->values(['id' => 1])->run();
-
-                $db->transaction(
-                    function (Database $db) {
-                        $db->insert('uniq_table')->values(['id' => 1])->run();
+                        $ch->push($id);
+                    } catch (\Throwable $e) {
+                        $ch->push($e);
                     }
-                );
-            }
-        );
+                }
+            );
+        });
+
+        Coroutine::create(function () use ($db, $ch) {
+            $this->database->transaction(
+                function () use ($db, $ch): void {
+                    try {
+                        $id = $db->table->insertOne(['name' => 'Dmitry', 'value' => 456]);
+                        $this->assertSame(1, $this->database->table->count());
+                        $db->query('SELECT pg_sleep(0.5)');
+
+                        $ch->push($id);
+                    } catch (\Throwable $e) {
+                        $ch->push($e);
+                    }
+                }
+            );
+        });
+
+        if (($err = $ch->pop()) instanceof \Throwable) {
+            throw $err;
+        }
+        $ids[] = $err;
+
+        if (($err = $ch->pop()) instanceof \Throwable) {
+            throw $err;
+        }
+        $ids[] = $err;
+
+        self::assertSame(2, $this->database->table->count());
+        self::assertSame(2, $pool->getIdleCount());
+        self::assertContains(1, $ids);
+        self::assertContains(2, $ids);
     }
 }
