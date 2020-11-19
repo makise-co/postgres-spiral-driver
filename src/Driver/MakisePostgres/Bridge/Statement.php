@@ -29,6 +29,8 @@ final class Statement implements StatementInterface, IteratorAggregate
 {
     private ?PostgresStatement $pdoStatement;
 
+    private string $queryString;
+
     /**
      * @var ResultSet|null
      */
@@ -44,6 +46,7 @@ final class Statement implements StatementInterface, IteratorAggregate
     public function __construct(PostgresStatement $pdoStatement, $result)
     {
         $this->pdoStatement = $pdoStatement;
+        $this->queryString = $pdoStatement->getQuery();
 
         if ($result instanceof ResultSet) {
             $this->resultSet = $result;
@@ -52,12 +55,20 @@ final class Statement implements StatementInterface, IteratorAggregate
         }
     }
 
+    public function __destruct()
+    {
+        try {
+            $this->pdoStatement = null;
+        } catch (\Throwable $e) {
+        }
+    }
+
     /**
      * @return string
      */
     public function getQueryString(): string
     {
-        return $this->pdoStatement->getQuery();
+        return $this->queryString;
     }
 
     /**
@@ -155,6 +166,11 @@ final class Statement implements StatementInterface, IteratorAggregate
     {
         $this->resultSet = null;
         $this->affectedRowsCount = 0;
+
+        try {
+            $this->pdoStatement = null;
+        } catch (\Throwable $e) {
+        }
     }
 
     protected function pdoFetchStyleToPostgresFetchStyle($fetchStyle): int
