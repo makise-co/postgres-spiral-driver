@@ -70,10 +70,11 @@ abstract class StatementTest extends BaseTest
             $table->select()->getIterator()
         );
 
-        $this->assertInstanceOf(
-            Statement::class,
-            $table->select()->run()->getPDOStatement()
-        );
+        // We do not storing PDO statement anymore
+//        $this->assertInstanceOf(
+//            Statement::class,
+//            $table->select()->run()->getPDOStatement()
+//        );
     }
 
     //We are testing only extended functionality, there is no need to test PDOStatement

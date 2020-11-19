@@ -532,12 +532,8 @@ class PooledMakisePostgresDriver implements DriverInterface
                 return $this->statement($query, $parameters, false);
             }
 
-            // an exception occurred during transaction
-            if ($this->getTransactionConn() !== null) {
-                try {
-                    unset($statement);
-                } catch (\Throwable $stmtCloseEx) {
-                }
+            if (($conn = $this->getTransactionConn()) !== null && isset($statement)) {
+                $conn->addStatementToDeallocate($statement);
             }
 
             throw $e;
