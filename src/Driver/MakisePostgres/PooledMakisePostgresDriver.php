@@ -458,7 +458,15 @@ class PooledMakisePostgresDriver implements DriverInterface
             return $this->primaryKeys[$name];
         }
 
-        if (!$this->getSchemaHandler()->hasTable($name)) {
+        try {
+            $hasTable = $this->getSchemaHandler()->hasTable($name);
+        } catch (\Throwable $e) {
+            $this->pkCacheLock->unlock();
+
+            throw $e;
+        }
+
+        if (!$hasTable) {
             $this->pkCacheLock->unlock();
 
             throw new DriverException(
@@ -466,9 +474,15 @@ class PooledMakisePostgresDriver implements DriverInterface
             );
         }
 
-        $this->primaryKeys[$name] = $this->getSchemaHandler()
-            ->getSchema($table, $prefix)
-            ->getPrimaryKeys();
+        try {
+            $this->primaryKeys[$name] = $this->getSchemaHandler()
+                ->getSchema($table, $prefix)
+                ->getPrimaryKeys();
+        } catch (\Throwable $e) {
+            $this->pkCacheLock->unlock();
+
+            throw $e;
+        }
 
         if (count($this->primaryKeys[$name]) === 1) {
             //We do support only single primary key
