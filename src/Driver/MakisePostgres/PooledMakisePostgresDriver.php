@@ -181,6 +181,14 @@ class PooledMakisePostgresDriver implements DriverInterface
         return $this->pool;
     }
 
+    /**
+     * {@inheritdoc}
+     */
+    public function isReadonly(): bool
+    {
+        return (bool)($this->options['readonly'] ?? false);
+    }
+
     public function getType(): string
     {
         return 'MakisePostgresPool';

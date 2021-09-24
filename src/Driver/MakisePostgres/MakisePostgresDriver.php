@@ -88,7 +88,10 @@ class MakisePostgresDriver implements DriverInterface, LoggerAwareInterface
         'queryCache' => true,
 
         // disable schema modifications
-        'readonlySchema' => false
+        'readonlySchema' => false,
+
+        // disable write expressions
+        'readonly'       => false,
     ];
 
     private ?Connection $connection = null;
@@ -212,6 +215,14 @@ class MakisePostgresDriver implements DriverInterface, LoggerAwareInterface
         }
 
         throw new DriverException("Undefined driver method `{$name}`");
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function isReadonly(): bool
+    {
+        return (bool)($this->options['readonly'] ?? false);
     }
 
     /**
