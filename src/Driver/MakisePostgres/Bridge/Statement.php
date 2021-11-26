@@ -12,7 +12,6 @@ declare(strict_types=1);
 namespace MakiseCo\Database\Driver\MakisePostgres\Bridge;
 
 use Generator;
-use IteratorAggregate;
 use MakiseCo\SqlCommon\Contracts\CommandResult;
 use MakiseCo\SqlCommon\Contracts\ResultSet;
 use MakiseCo\SqlCommon\Contracts\Statement as PostgresStatement;
@@ -25,7 +24,7 @@ use Spiral\Database\StatementInterface;
  *
  * @internal Do not use this class directly.
  */
-final class Statement implements StatementInterface, IteratorAggregate
+final class Statement implements StatementInterface
 {
     private ?PostgresStatement $pdoStatement;
 
