@@ -10,7 +10,7 @@
     }
   ],
   "require": {
-    "php": "^7.4",
+    "php": ">=7.4",
     "spiral/database": "~2.0",
     "makise-co/postgres": "^2.0.3"
   },
